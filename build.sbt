@@ -4,6 +4,12 @@ version := "1.0"
 
 scalaVersion := "2.11.11"
 
-// PureImage
-resolvers += "stephenjudkins-bintray" at "http://dl.bintray.com/stephenjudkins/maven"
-libraryDependencies += "ps.tricerato" %% "pureimage" % "0.1.2"
+// scrimage
+libraryDependencies += "com.sksamuel.scrimage" %% "scrimage-core" % "2.1.7"
+
+libraryDependencies += "com.sksamuel.scrimage" %% "scrimage-io-extra" % "2.1.7"
+
+libraryDependencies += "com.sksamuel.scrimage" %% "scrimage-filters" % "2.1.7"
+
+// scallop
+libraryDependencies += "org.rogach" %% "scallop" % "3.0.1"
