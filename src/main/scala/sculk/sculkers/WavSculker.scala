@@ -133,51 +133,82 @@ object WavSculker extends Sculker {
           .map(b => b & lsOnes(8))
           .head.toByte
 
-      var payloadBytesLeft: Long =
+      var payloadFramesLeft: Long =
         buffer.slice(1, 1 + 8)
           .map(b => b & lsOnes(8))
           .reduceLeft((value, byte) => (value << 8) | byte)
 
-      val payloadBytesInBuffer =
-        Math.min(payloadBytesLeft.toInt, buffer.length - metadataSize)
+      val payloadFramesInBuffer =
+        Math.min(payloadFramesLeft.toInt, buffer.length - metadataSize)
 
-      buffer.slice(metadataSize, metadataSize + payloadBytesInBuffer)
-        .map(b => b & lsOnes(bitsPerFrame))
+      val framesPerByte = (8.toDouble / bitsPerFrame).ceil.toInt
+
+      var alignedFrames = (payloadFramesInBuffer / framesPerByte) * framesPerByte
+      val alignedFramesEnd = metadataSize + alignedFrames
+
+      buffer.iterator.slice(metadataSize, alignedFramesEnd)
+        .map(_.toByte)
+        .flatMap(b => msBitIterator(b).drop(8 - bitsPerFrame))
+        .grouped(8)
+        .map(msAsByte)
         .foreach(b => unload.write(b.toInt))
 
-      payloadBytesLeft -= payloadBytesInBuffer
+      payloadFramesLeft -= alignedFrames
+
+      val unalignedBuffer = new Array[Long](framesPerByte - 1)
+      buffer.iterator.drop(alignedFramesEnd)
+        .copyToArray(unalignedBuffer)
+      var unalignedFrames = buffer.length - alignedFramesEnd
 
       framesRead = combo.readFrames(buffer, bufferFrames)
-      while (framesRead != 0) {
-        val payloadByteCount = Math.min(payloadBytesLeft.toInt, buffer.length)
+      while (payloadFramesLeft > 0 && framesRead != 0) {
+        val payloadFrames = Math.min(payloadFramesLeft.toInt, buffer.length)
 
-        val frameBytes =
-          buffer.iterator
-            .take(payloadByteCount)
-            .map(_.toByte)
+        var unalignedIterator = unalignedBuffer.iterator.take(unalignedFrames)
+        var smoothIterator = unalignedIterator ++ buffer.iterator
 
-        val payloadBits =
-          frameBytes.flatMap(
-            b => msBitIterator(b).drop(8 - bitsPerFrame)
-          )
+        alignedFrames = ((unalignedFrames + payloadFrames) / framesPerByte) * framesPerByte
 
-        val payloadBytes =
-          payloadBits.grouped(8).map(msAsByte)
+        smoothIterator.take(alignedFrames)
+          .map(_.toByte)
+          .flatMap(
+            b => msBitIterator(b).drop(8 - bitsPerFrame))
+          .grouped(8)
+          .map(msAsByte)
+          .foreach(b => unload.write(b.toInt))
 
-        payloadBytes.foreach(b => unload.write(b))
+        payloadFramesLeft -= alignedFrames
 
-        payloadBytesLeft -= payloadByteCount
+        // smoothIterator.take can be destructive, need to rebuild
+        unalignedIterator = unalignedBuffer.iterator.take(unalignedFrames)
+        smoothIterator = unalignedIterator ++ buffer.iterator
+
+        smoothIterator.drop(alignedFrames)
+          .copyToArray(unalignedBuffer)
+        unalignedFrames = unalignedFrames + buffer.length - alignedFrames
 
         framesRead = combo.readFrames(buffer, bufferFrames)
+      }
+
+      if (payloadFramesLeft > 0) {
+        unalignedBuffer.iterator.take(unalignedFrames)
+          .map(_.toByte)
+          .flatMap(
+            b => msBitIterator(b).drop(8 - bitsPerFrame))
+          .grouped(8)
+          .map(msAsByte)
+          .foreach(b => unload.write(b.toInt))
+
+        payloadFramesLeft -= unalignedFrames
       }
 
       combo.close()
       unload.close()
 
-      if (payloadBytesLeft != 0) {
+      if (payloadFramesLeft != 0) {
         throw new EOFException(
           s"Data sculking in $comboPath seems to be incomplete." +
-            s" Missing $payloadBytesLeft bytes")
+            s" Missing $payloadFramesLeft bytes")
       }
     }
 
