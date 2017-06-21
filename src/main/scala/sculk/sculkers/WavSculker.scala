@@ -5,23 +5,22 @@ import java.nio.ByteBuffer
 import java.nio.file.{Files, Paths}
 
 import sculk.LoadLevel.LoadLevel
-import sculk.Main._
 import sculk.utils.BitUtils._
 import sculk.{LoadLevel, Sculker, WavFile, WavFileException}
 
 
 object WavSculker extends Sculker {
 
-  val bufferFrames = 1024 // minimum 9
+  private val bufferFrames = 1024 // minimum 9
 
-  val payloadBitsPerFrame: Map[LoadLevel, Byte] = Map(
+  private val payloadBitsPerFrame: Map[LoadLevel, Byte] = Map(
     LoadLevel.Low -> 2,
     LoadLevel.Medium -> 4,
     LoadLevel.High -> 8
   )
 
   // 1 byte for bits per frame, 8 bytes for payload frame count
-  val metadataSize: Int = 1 + 8
+  private val metadataSize: Int = 1 + 8
 
 
   override def load(driverPath: String, payloadPath: String, comboPath: String,
@@ -121,7 +120,7 @@ object WavSculker extends Sculker {
     val unload = new BufferedOutputStream(new FileOutputStream(unloadPath))
 
     try {
-      val combo = WavFile.openWavFile(new File(comboFilePath))
+      val combo = WavFile.openWavFile(new File(comboPath))
 
       val numChannels = combo.getNumChannels
       val buffer = new Array[Long](bufferFrames * numChannels)

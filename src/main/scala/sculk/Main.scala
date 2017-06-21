@@ -5,16 +5,33 @@ import sculk.sculkers.WavSculker
 
 object Main {
 
-  val payloadFilePath = "src/test/resources/pics.zip"
-  val driverFilePath = "src/test/resources/foo.wav"
-  val comboFilePath = "src/test/resources/sculkyFoo.wav"
-  val unloadPath = "src/test/resources/unload.zip"
-
   def main(args: Array[String]): Unit = {
-    println("Hello sculk")
+    val conf = new ArgumentParser(args)
 
-    WavSculker.load(driverFilePath, payloadFilePath, comboFilePath, LoadLevel.Medium)
-    WavSculker.unload(comboFilePath, unloadPath)
+    if (conf.subcommands.isEmpty) {
+
+      println("Incorrect input. For help use the option --help.")
+
+    } else if (conf.encode.driverPath.isSupplied) {
+
+      val loadLevel = LoadLevel(conf.encode.loadLevel() - 1)
+      println("Encoding level used was " + loadLevel)
+
+      WavSculker.load(conf.encode.driverPath(), conf.encode.payloadPath(),
+        conf.encode.comboPath(), loadLevel)
+
+    } else if (conf.decode.comboPath.isSupplied) {
+
+      WavSculker.unload(conf.decode.comboPath(), conf.decode.unloadPath())
+
+    } else if (conf.capacity.driverPath.isSupplied) {
+
+      val loadLevel = LoadLevel(conf.capacity.loadLevel() - 1)
+      println("Encoding level used was " + loadLevel)
+
+      println(WavSculker.getDataBytesCapacity(conf.capacity.driverPath(), loadLevel).toString + " B")
+
+    }
   }
 
 }
