@@ -1,4 +1,4 @@
-import java.io.{File, FileOutputStream}
+import java.io.{File, FileNotFoundException, FileOutputStream}
 import java.nio.file.{Files, Paths}
 
 import com.sksamuel.scrimage.{Image, Pixel}
@@ -10,6 +10,8 @@ import BitFunctions.{takeNLowestBits, _}
   */
 object PNGSculker {
 
+  @throws("NoSuchFileException")
+  @throws("IOException")
   def decode(pathToEncoded: String, outputPath: String, encodeLevel: Int): Unit = {
     require(encodeLevel >= 1 && encodeLevel <= 8)
 
@@ -38,6 +40,7 @@ object PNGSculker {
 
   def getNumberOfPixels(image: Image): Int = image.height * image.width
 
+  @throws("IOException")
   def displayNLowestBits(image: Image, outputFile: String, n: Int): Unit = {
     require(n >= 1 && n <= 8)
 
@@ -56,6 +59,8 @@ object PNGSculker {
     lowestBits.output(outputFile)
   }
 
+  @throws("NoSuchFileException")
+  @throws("IOException")
   def encode(pathToOriginal: String, pathToMsg: String, pathToEncoded: String, noOfBits: Int): Int = {
     require(noOfBits >= 0 && noOfBits <= 8)
 
